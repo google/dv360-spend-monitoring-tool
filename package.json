@@ -1,0 +1,27 @@
+{
+  "name": "dv360_spend_monitoring_tool",
+  "version": "1.0.0",
+  "description": "A DV360 Spend Monitoring Tool",
+  "author": "Google Inc.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/google/dv360-spend-monitoring-tool.git"
+  },
+  "homepage": "https://github.com/google/dv360-spend-monitoring-tool#readme",
+  "main": "index.js",
+  "dependencies": {
+    "@google-cloud/data-tasks-coordinator": "^0.5.0",
+    "@google-cloud/nodejs-common": "^0.7.2"
+  },
+  "scripts": {
+    "test": "node node_modules/jasmine/bin/jasmine"
+  },
+  "cloud-repo-tools": {
+    "requiresKeyFile": true,
+    "requiresProjectId": true
+  },
+  "keywords": [
+    "DV360"
+  ]
+}

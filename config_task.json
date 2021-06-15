@@ -1,0 +1,141 @@
+{
+  "start_probe": {
+    "type": "query",
+    "source": {
+      "sql": "SELECT report_id AS queryId FROM `#DATASET#.#EXTERNAL_PARTNER_TABLE#` WHERE report_id IS NOT NULL",
+      "external": true
+    },
+    "destination": {
+      "table": {
+        "projectId": "#PROJECT_ID#",
+        "datasetId": "#DATASET#",
+        "tableId": "tmp_report_task_list"
+      },
+      "writeDisposition": "WRITE_TRUNCATE"
+    },
+    "appendedParameters": {
+      "datasetId": "#DATASET#",
+      "reportPath": "reporting/dv360_spend_report"
+    },
+    "next": "export_tasks"
+  },
+  "export_tasks": {
+    "type": "export",
+    "source": {
+      "projectId": "${destinationTable.projectId}",
+      "datasetId": "${destinationTable.datasetId}",
+      "tableId": "${destinationTable.tableId}",
+      "location": "#DATASET_LOCATION#"
+    },
+    "destination": {
+      "bucket": "#GCS_BUCKET#",
+      "name": "${reportPath}/report_task_list.ndjson"
+    },
+    "options": {
+      "destinationFormat": "NEWLINE_DELIMITED_JSON",
+      "printHeader": false
+    },
+    "next": "distribute_tasks"
+  },
+  "distribute_tasks": {
+    "type": "multiple",
+    "source": {
+      "bucket": "#GCS_BUCKET#",
+      "name": "${reportPath}/report_task_list.ndjson"
+    },
+    "destination": {
+      "taskId": "dv360_spend_report",
+      "target": "pubsub",
+      "qps": 0.2
+    },
+    "multiple": {
+      "dueTime": 30
+    },
+    "next": "load_dv360_spend_report"
+  },
+  "dv360_spend_report": {
+    "type": "report",
+    "source": {
+      "target": "DV360",
+      "config": {
+        "queryId": "${queryId}",
+        "requestBody": {
+          "dataRange": "CUSTOM_DATES",
+          "timezoneCode": "${timezone}",
+          "reportDataStartTimeMs": "${startTimeMs}",
+          "reportDataEndTimeMs": "${endTimeMs}"
+        }
+      }
+    },
+    "destination": {
+      "bucket": "#GCS_BUCKET#",
+      "name": "${reportPath}/${partitionDay}/${queryId}.csv"
+    },
+    "errorOptions": {
+      "retryTimes": 0,
+      "ignoreError": true
+    }
+  },
+  "load_dv360_spend_report": {
+    "type": "load",
+    "source": {
+      "file": {
+        "bucket": "#GCS_BUCKET#",
+        "name": "${reportPath}/${partitionDay}/*"
+      }
+    },
+    "destination": {
+      "table": {
+        "datasetId": "#DATASET#",
+        "tableId": "dv360_spend_report_data$${partitionDay}",
+        "location": "#DATASET_LOCATION#"
+      },
+      "tableSchema": {
+        "timePartitioning": {
+          "type": "DAY",
+          "expirationMs": "7776000000"
+        }
+      }
+    },
+    "options": {
+      "sourceFormat": "CSV",
+      "fieldDelimiter": ",",
+      "writeDisposition": "WRITE_TRUNCATE",
+      "skipLeadingRows": 1,
+      "autodetect": true
+    },
+    "next": [
+      {
+        "taskId": "query_general",
+        "appendedParameters": {
+          "queryName": "partner_spend_view"
+        }
+      },
+      {
+        "taskId": "query_general",
+        "appendedParameters": {
+          "queryName": "advertiser_spend_view"
+        }
+      }
+    ]
+  },
+  "query_general": {
+    "type": "query",
+    "source": {
+      "file": {
+        "projectId": "#PROJECT_ID#",
+        "bucket": "#GCS_BUCKET#",
+        "name": "sql/${queryName}.sql"
+      },
+      "external": true
+    },
+    "destination": {
+      "table": {
+        "projectId": "#PROJECT_ID#",
+        "datasetId": "#DATASET#",
+        "tableId": "${queryName}"
+      },
+      "writeDisposition": "WRITE_TRUNCATE"
+    }
+  }
+}
