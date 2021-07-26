@@ -16,6 +16,9 @@
 
 # Need to get shell lib files ready before import them.
 npm install
+# 2021-07-26 Latest clasp (v2.4.0) requires new engine which is not supported
+# by Cloud Shell by default.
+npm install -g @google/clasp@2.3.0
 
 # Timezone of DV360 account
 TIMEZONE="Australia/Sydney"
@@ -54,6 +57,8 @@ CONFIG_ITEMS=(
 GOOGLE_CLOUD_APIS["doubleclickbidmanager.googleapis.com"]+="Google DV360 Report API"
 # Google Drive API enabled in this solution for external table in BigQuery.
 GOOGLE_CLOUD_APIS["drive.googleapis.com"]+="Google Drive API"
+# Apps Script API enabled for managing and executing Google Apps Script projects.
+GOOGLE_CLOUD_APIS["script.googleapis.com"]+="Apps Script API"
 
 # DoubleClick Bid Manager API only supports OAuth.
 ENABLED_OAUTH_SCOPES+=("https://www.googleapis.com/auth/doubleclickbidmanager")
@@ -98,14 +103,28 @@ clasp_login() {
 #   None
 #######################################
 clasp_initialize() {
-  (( STEP += 1 ))
+  ((STEP += 1))
   printf '%s\n' "Step ${STEP}: Starting to create Google Sheets..."
   clasp_login
   while :; do
-    local claspStatus=$(clasp status > /dev/null ;echo $?)
-    if [[ $claspStatus -gt 0 ]];then
-      local createdSheet=$(clasp create --type sheets --rootDir ./apps_script \
---title 'DV360 spend configuration' | grep "Created new Google Sheet: " )
+    local claspStatus=$(
+      clasp status >/dev/null
+      echo $?
+    )
+    if [[ $claspStatus -gt 0 ]]; then
+      local createResult=$(
+        clasp create --type sheets --rootDir ./apps_script \
+          --title 'DV360 spend configuration' >.temp.sheet
+        echo $?
+      )
+      if [[ $createResult -gt 0 ]]; then
+        printf '%s' "Press any key to continue after you enable the API..."
+        local any
+        read -n1 -s any
+        printf '\n\n'
+        continue
+      fi
+      local createdSheet=$(grep "Created new Google Sheet: " .temp.sheet)
       declare -g SHEET_URL="${createdSheet//Created new Google Sheet: /}"
       printf '%s\n\n' "${createdSheet}"
       break
@@ -125,7 +144,7 @@ new one? [N/y]"
         deleteCurrent=${deleteCurrent:-"N"}
         if [[ ${useCurrent} = "Y" || ${useCurrent} = "y" ]]; then
           echo rm ~/.clasp.json
-          contine
+          continue
         fi
       fi
     fi
@@ -147,8 +166,8 @@ new one? [N/y]"
 #######################################
 generate_config_js_for_apps_script() {
   if [[ -f "${CONFIG_FILE}" ]]; then
-    echo -n "const GCP_CONFIG = " > apps_script/.generated_config.js
-    cat "${CONFIG_FILE}" >> apps_script/.generated_config.js
+    echo -n "const GCP_CONFIG = " >apps_script/.generated_config.js
+    cat "${CONFIG_FILE}" >>apps_script/.generated_config.js
   fi
 }
 
@@ -160,9 +179,9 @@ generate_config_js_for_apps_script() {
 #   None
 #######################################
 clasp_push_codes() {
-  (( STEP += 1 ))
+  ((STEP += 1))
   printf '%s\n' "Step ${STEP}: Starting to push codes to Google Sheets..."
-  clasp status >> /dev/null
+  clasp status >>/dev/null
   if [[ $? -gt 0 ]]; then
     clasp_initialize
   else
@@ -180,9 +199,9 @@ clasp_push_codes() {
 #   None
 #######################################
 clasp_update_project_number() {
-  (( STEP += 1 ))
+  ((STEP += 1))
   local projectNumber=$(gcloud projects list --filter="${GCP_PROJECT}" \
---format="value(PROJECT_NUMBER)")
+    --format="value(PROJECT_NUMBER)")
   printf '%s\n' "Step ${STEP}: On the open tab of Apps Script, use 'Project \
 Settings' to set the Google Cloud Platform (GCP) Project as: ${projectNumber}"
   clasp open
@@ -200,9 +219,9 @@ Settings' to set the Google Cloud Platform (GCP) Project as: ${projectNumber}"
 #   None
 #######################################
 grant_access_to_service_account() {
-  (( STEP += 1 ))
+  ((STEP += 1))
   local defaultServiceAccount=$(get_cloud_functions_service_account \
-"${PROJECT_NAMESPACE}_main")
+    "${PROJECT_NAMESPACE}_main")
   printf '%s\n' "Step ${STEP}: Open the Google Sheet and grant the Viewer \
 access to service account: ${defaultServiceAccount}"
   printf '%s\n' "Google Sheet: ${SHEET_URL}"
@@ -220,7 +239,7 @@ access to service account: ${defaultServiceAccount}"
 #   None
 #######################################
 initialize_sheet() {
-  (( STEP += 1 ))
+  ((STEP += 1))
   printf '%s\n' "Step ${STEP}: Click menu of opened Google Sheet with the name \
 [DV360 Spend Monitoring] -> [Initialize configuration sheets]"
   printf '%s' "Press any key to continue..."
@@ -245,7 +264,7 @@ Sheet (You can leave the 'Report Id' empty). Then click menu \
 #   None
 #######################################
 create_or_update_scheduled_jobs() {
-  (( STEP += 1 ))
+  ((STEP += 1))
   printf '%s\n' "Step ${STEP}: Starting to create or update Cloud Scheduler \
 for Sentinel status check task..."
   check_authentication
