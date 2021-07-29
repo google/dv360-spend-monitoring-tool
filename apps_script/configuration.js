@@ -23,9 +23,10 @@ const PartnerConfig = {
       'partner_id',
       'partner_monthly_cap',
       'advertiser_monthly_cap',
-      'warning_threshold',
-      'pausing_threshold',
-      'exceeded_warning_threshold',
+      'warning1_threshold',
+      'warning2_threshold',
+      'action1_threshold',
+      'action2_threshold',
       'report_id',
     ],
   },
@@ -58,6 +59,11 @@ const FIELD_NAME_TYPE_MAPPING = {
   id: 'INTEGER',
   cap: 'FLOAT',
   threshold: 'FLOAT',
+};
+
+/** @type {{string:string}} Map the suffix of a column name to Sheet format. */
+const FIELD_NAME_FORMAT_MAPPING = {
+  threshold: '#0.00%',
 };
 
 /**
@@ -101,7 +107,7 @@ const DV360_REPORT_DEFINITION = {
       "FILTER_ADVERTISER_TIMEZONE",
     ],
     filters: [
-      {type: 'FILTER_PARTNER', value: '${partnerId}',}
+      {type: 'FILTER_PARTNER', value: '${partnerId}', }
     ],
     metrics: [
       'METRIC_IMPRESSIONS',

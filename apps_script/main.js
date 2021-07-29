@@ -16,12 +16,12 @@
 
 function onOpen() {
   const advertisersSubMenu = SpreadsheetApp.getUi()
-      .createMenu('DV360 Spend Monitoring');
+    .createMenu('DV360 Spend Monitoring');
   advertisersSubMenu.addItem('Generate Dv360 reports', 'generateReports');
   advertisersSubMenu.addSeparator();
   advertisersSubMenu.addItem('Initialize configuration sheets', 'initialize');
   advertisersSubMenu.addItem('Update external tables in BigQuery',
-      'createExternalTable');
+    'createExternalTable');
   advertisersSubMenu.addToUi();
 }
 
@@ -49,10 +49,10 @@ function generateReports() {
   const dfa = new DoubleclickBidManager();
   const reportIds = missingReports.map((partner) => {
     const report = replaceParameters(JSON.stringify(DV360_REPORT_DEFINITION),
-        {
-          partnerId: partner[PARTNER_ID],
-          partnerName: partner[PARTNER_NAME],
-        }, true);
+      {
+        partnerId: partner[PARTNER_ID],
+        partnerName: partner[PARTNER_NAME],
+      }, true);
     return dfa.createQuery(JSON.parse(report));
   })
   reportIds.forEach((reportId, index) => {
@@ -68,13 +68,13 @@ function generateReports() {
 function initialize() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const existSheet = spreadsheet.getSheetByName(PartnerConfig.sheetName)
-      || spreadsheet.getSheetByName(AdvertiserConfig.sheetName);
+    || spreadsheet.getSheetByName(AdvertiserConfig.sheetName);
   if (existSheet) {
     const ui = SpreadsheetApp.getUi();
     const response = ui.alert('Please confirm',
-        'This will erase everything on the Partner or Advertiser Config sheet, '
-        + 'Continue?',
-        ui.ButtonSet.YES_NO);
+      'This will erase everything on the Partner or Advertiser Config sheet, '
+      + 'Continue?',
+      ui.ButtonSet.YES_NO);
     if (response !== ui.Button.YES) {
       return;
     }
@@ -83,9 +83,26 @@ function initialize() {
     const sheet = new EnhancedSheet(configSheet.sheetName);
     sheet.clear();
     sheet.save([configSheet.title.fields]);
+    setFormat(configSheet.title.fields, sheet.sheet);
   });
   // Create external table in BigQuery if it's not existent.
   createExternalTable(false);
+}
+
+/**
+ * Sets the format of columns in the Google Sheet.
+ * @param {!Array<string>} fields Sheet column names.
+ * @param {!Sheet} sheet Google Sheet
+ */
+function setFormat(fields, sheet) {
+  return fields.map((field, index) => {
+    const suffix = field.substring(field.lastIndexOf('_') + 1);
+    const format = FIELD_NAME_FORMAT_MAPPING[suffix];
+    if (format) {
+      const column = String.fromCharCode('A'.charCodeAt(0) + index);
+      sheet.getRange(column + '2:' + column).setNumberFormat(format);
+    }
+  });
 }
 
 /**
