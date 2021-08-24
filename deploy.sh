@@ -20,14 +20,10 @@ npm install
 # by Cloud Shell by default.
 npm install -g @google/clasp@2.3.0
 
-# Timezone of DV360 account
-TIMEZONE="Australia/Sydney"
-
 SOLUTION_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ "${BASH_SOURCE[0]}" -ef "$0" ]]; then
   RELATIVE_PATH="node_modules/@google-cloud"
   source "${SOLUTION_ROOT}/${RELATIVE_PATH}/nodejs-common/bin/install_functions.sh"
-  source "${SOLUTION_ROOT}/${RELATIVE_PATH}/nodejs-common/bin/bigquery.sh"
   source "${SOLUTION_ROOT}/${RELATIVE_PATH}/data-tasks-coordinator/deploy.sh"
 fi
 
@@ -36,6 +32,9 @@ fi
 # Default project namespace is SOLUTION_NAME.
 # Note: only lowercase letters, numbers and dashes(-) are allowed.
 PROJECT_NAMESPACE="probe"
+
+# Timezone of scheduled jobs and DV360 account
+TIMEZONE="Etc/UTC"
 
 # BigQuery Dataset Id.
 DATASET="dv360_spend_monitor_data"
@@ -46,6 +45,8 @@ EXTERNAL_ADVERTISER_TABLE="dv360_advertiser_config"
 # Parameter name used by functions to load and save config.
 CONFIG_ITEMS=(
   "PROJECT_NAMESPACE"
+  "TIMEZONE"
+  "REGION"
   "GCS_BUCKET"
   "DATASET"
   "DATASET_LOCATION"
@@ -65,6 +66,21 @@ ENABLED_OAUTH_SCOPES+=("https://www.googleapis.com/auth/doubleclickbidmanager")
 NEED_OAUTH="true"
 
 #######################################
+# Initialize configurations, including copying sql files and uploading task
+# configurations into Firestore.
+# Globals:
+#   None
+# Arguments:
+#   None
+#######################################
+initialize_configuration() {
+  ((STEP += 1))
+  printf '%s\n' "Step ${STEP}: Starting to initialize configurations..."
+  copy_to_gcs sql/
+  update_task_config ./config_task.json
+}
+
+#######################################
 # Clasp login.
 # Globals:
 #   None
@@ -79,7 +95,7 @@ clasp_login() {
       local logout
       read -r logout
       logout=${logout:-"Y"}
-      if [[ ${logout} = "Y" || ${logout} = "y" ]]; then
+      if [[ ${logout} == "Y" || ${logout} == "y" ]]; then
         break
       else
         clasp logout
@@ -200,8 +216,7 @@ clasp_push_codes() {
 #######################################
 clasp_update_project_number() {
   ((STEP += 1))
-  local projectNumber=$(gcloud projects list --filter="${GCP_PROJECT}" \
-    --format="value(PROJECT_NUMBER)")
+  local projectNumber=$(get_project_number)
   printf '%s\n' "Step ${STEP}: On the open tab of Apps Script, use 'Project \
 Settings' to set the Google Cloud Platform (GCP) Project as: ${projectNumber}"
   clasp open
@@ -266,55 +281,71 @@ Sheet (You can leave the 'Report Id' empty). Then click menu \
 create_or_update_scheduled_jobs() {
   ((STEP += 1))
   printf '%s\n' "Step ${STEP}: Starting to create or update Cloud Scheduler \
-for Sentinel status check task..."
-  check_authentication
-  quit_if_failed $?
-  create_or_update_cloud_scheduler_for_pubsub \
-    "${PROJECT_NAMESPACE}_dv360_spend_report_yesterday" \
+jobs for DV360 spend monitoring solution..."
+  create_cron_task \
+    "start_probe" \
     "0 8 * * *" \
     "${TIMEZONE}" \
-    ${PROJECT_NAMESPACE}-monitor \
     '{
        "timezone":"'"${TIMEZONE}"'",
        "partitionDay":"${yesterday}",
        "startTimeMs":"${yesterday_timestamp_ms}",
        "endTimeMs":"${yesterday_timestamp_ms}"
     }' \
-    taskId=start_probe
+    "${PROJECT_NAMESPACE}_dv360_spend_report_yesterday"
 
-  create_or_update_cloud_scheduler_for_pubsub \
-    "${PROJECT_NAMESPACE}_dv360_spend_report_today" \
+  create_cron_task \
+    "start_probe" \
     "20 1-23 * * *" \
     "${TIMEZONE}" \
-    ${PROJECT_NAMESPACE}-monitor \
     '{
        "timezone":"'"${TIMEZONE}"'",
        "partitionDay":"${today}",
        "startTimeMs":"${today_timestamp_ms}",
        "endTimeMs":"${today_timestamp_ms}"
     }' \
-    taskId=start_probe
+    "${PROJECT_NAMESPACE}_dv360_spend_report_today"
+}
+
+#######################################
+# Generate backfill data for reports that didn't start since the first day of
+# current month.
+# Globals:
+#   PROJECT_NAMESPACE
+#   TIMEZONE
+# Arguments:
+#   None
+#######################################
+backfill() {
+  printf '%s\n\n' "Sending the message to trigger backfill job..."
+  node -e "require('./index.js').startTaskThroughPubSub(process.argv[1], \
+    process.argv[2],'${PROJECT_NAMESPACE}')" "start_backfill" \
+    '{
+       "timezone":"'"${TIMEZONE}"'",
+       "cutoffDay":"${today_sub_1}",
+       "partitionDay":"${today_set_1}"
+    }'
 }
 
 DEFAULT_INSTALL_TASKS=(
   "print_welcome Probe"
-  load_config
   check_in_cloud_shell
-  prepare_dependencies
-  confirm_namespace confirm_project confirm_region
-  check_permissions enable_apis
-  create_bucket
-  create_dataset
-  create_sink
+  confirm_project
+  check_permissions
+  confirm_namespace
+  confirm_timezone
+  confirm_region
+  enable_apis
+  "confirm_located_dataset DATASET DATASET_LOCATION REGION"
+  "confirm_located_bucket GCS_BUCKET BUCKET_LOCATION DATASET_LOCATION"
   save_config
+  create_sink
   do_authentication
-  deploy_cloud_functions_task_coordinator
-  copy_sql_to_gcs
-  check_firestore_existence
-  "update_task_config ./config_task.json"
+  deploy_sentinel
+  initialize_configuration
+  clasp_initialize
   set_internal_task
   create_or_update_scheduled_jobs
-  clasp_initialize
   "print_finished Probe"
 )
 

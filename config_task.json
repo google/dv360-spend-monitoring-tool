@@ -15,7 +15,8 @@
     },
     "appendedParameters": {
       "datasetId": "#DATASET#",
-      "reportPath": "reporting/dv360_spend_report"
+      "reportPath": "reporting/dv360_spend_report",
+      "reportTaskList": "report_task_list.ndjson"
     },
     "next": "export_tasks"
   },
@@ -29,7 +30,7 @@
     },
     "destination": {
       "bucket": "#GCS_BUCKET#",
-      "name": "${reportPath}/report_task_list.ndjson"
+      "name": "${reportPath}/${reportTaskList}"
     },
     "options": {
       "destinationFormat": "NEWLINE_DELIMITED_JSON",
@@ -41,7 +42,7 @@
     "type": "multiple",
     "source": {
       "bucket": "#GCS_BUCKET#",
-      "name": "${reportPath}/report_task_list.ndjson"
+      "name": "${reportPath}/${reportTaskList}"
     },
     "destination": {
       "taskId": "dv360_spend_report",
@@ -137,5 +138,38 @@
       },
       "writeDisposition": "WRITE_TRUNCATE"
     }
+  },
+  "start_backfill": {
+    "type": "knot",
+    "appendedParameters": {
+      "datasetId": "#DATASET#",
+      "partnerConfigTable": "#EXTERNAL_PARTNER_TABLE#",
+      "timezone": "#TIMEZONE#"
+    },
+    "next": "backfill_real_task"
+  },
+  "backfill_real_task": {
+    "type": "query",
+    "source": {
+      "file": {
+        "projectId": "#PROJECT_ID#",
+        "bucket": "#GCS_BUCKET#",
+        "name": "sql/backfill_task_list.sql"
+      },
+      "external": true
+    },
+    "destination": {
+      "table": {
+        "projectId": "#PROJECT_ID#",
+        "datasetId": "#DATASET#",
+        "tableId": "backfill_task_list"
+      },
+      "writeDisposition": "WRITE_TRUNCATE"
+    },
+    "appendedParameters": {
+      "reportPath": "reporting/dv360_spend_report",
+      "reportTaskList": "backfill_task_list.ndjson"
+    },
+    "next": "export_tasks"
   }
 }
