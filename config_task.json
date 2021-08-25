@@ -41,8 +41,10 @@
   "distribute_tasks": {
     "type": "multiple",
     "source": {
-      "bucket": "#GCS_BUCKET#",
-      "name": "${reportPath}/${reportTaskList}"
+      "file": {
+        "bucket": "#GCS_BUCKET#",
+        "name": "${reportPath}/${reportTaskList}"
+      }
     },
     "destination": {
       "taskId": "dv360_spend_report",
