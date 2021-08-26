@@ -147,8 +147,7 @@
   "log_complete": {
     "type": "query",
     "source": {
-      "sql": "SELECT CURRENT_DATETIME('${timezone}') as lastTaskCompleted",
-      "external": true
+      "sql": "SELECT CURRENT_DATETIME('${timezone}') as lastTaskCompleted"
     },
     "destination": {
       "table": {
