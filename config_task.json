@@ -54,7 +54,10 @@
     "multiple": {
       "dueTime": 30
     },
-    "next": "load_dv360_spend_report"
+    "next": [
+      "load_dv360_spend_report",
+      "log_complete"
+    ]
   },
   "dv360_spend_report": {
     "type": "report",
@@ -137,6 +140,21 @@
         "projectId": "#PROJECT_ID#",
         "datasetId": "#DATASET#",
         "tableId": "${queryName}"
+      },
+      "writeDisposition": "WRITE_TRUNCATE"
+    }
+  },
+  "log_complete": {
+    "type": "query",
+    "source": {
+      "sql": "SELECT CURRENT_DATETIME('${timezone}') as lastTaskCompleted",
+      "external": true
+    },
+    "destination": {
+      "table": {
+        "projectId": "#PROJECT_ID#",
+        "datasetId": "#DATASET#",
+        "tableId": "task_log"
       },
       "writeDisposition": "WRITE_TRUNCATE"
     }
