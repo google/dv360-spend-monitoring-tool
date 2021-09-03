@@ -17,9 +17,9 @@ WITH advertiser_latest_cost_update AS
     (SELECT Advertiser_ID AS advertiser_id, 
     MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS latest_report_date,
     MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS first_report_date,
-    COUNT(DISTINCT Date) AS days_of_data,
-    COUNT(DISTINCT Insertion_Order_ID) AS insertion_orders,
-    COUNT(DISTINCT Line_Item_ID) AS line_items
+    IFNULL(COUNT(DISTINCT Date), 0) AS days_of_data,
+    IFNULL(COUNT(DISTINCT Insertion_Order_ID), 0) AS insertion_orders,
+    IFNULL(COUNT(DISTINCT Line_Item_ID), 0) AS line_items
     FROM `${datasetId}.dv360_spend_report_data`
     GROUP BY Advertiser_ID),
 
@@ -29,16 +29,16 @@ WITH advertiser_latest_cost_update AS
     Insertion_Order_ID AS insertion_order_id, 
     MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS latest_report_date,
     MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS first_report_date,
-    COUNT(DISTINCT Date) AS days_of_data,
-    COUNT(*) AS hours_of_data,
+    IFNULL(COUNT(DISTINCT Date), 0) AS days_of_data,
+    IFNULL(COUNT(*), 0) AS hours_of_data,
     FROM `${datasetId}.dv360_spend_report_data`
     WHERE EXTRACT(MONTH from Date) = EXTRACT(MONTH from CURRENT_DATE("${timezone}"))
     GROUP BY Advertiser_ID, Line_Item_ID, Insertion_Order_ID),
 
     advertiser_spend_yesterday AS 
     (SELECT Advertiser_ID AS advertiser_id,
-            ROUND(SUM(Media_Cost__Advertiser_Currency_), 2) AS daily_media_cost,
-            ROUND(SUM(Revenue__Adv_Currency_), 2) AS daily_media_revenue,
+            IFNULL(ROUND(SUM(Media_Cost__Advertiser_Currency_), 2), 0) AS daily_media_cost,
+            IFNULL(ROUND(SUM(Revenue__Adv_Currency_), 2), 0) AS daily_media_revenue,
             DATE_ADD(CURRENT_DATE("${timezone}"), INTERVAL -1 DAY) AS date_yesterday
     FROM `${datasetId}.dv360_spend_report_data`
     WHERE Date = (DATE_ADD(CURRENT_DATE("${timezone}"), INTERVAL -1 DAY))
@@ -65,8 +65,8 @@ WITH advertiser_latest_cost_update AS
     advertiser_daily_media_cost_avg AS 
     (SELECT advertiser_id, 
             month,
-            ROUND(AVG(ROUND(daily_media_cost, 2)),2) AS daily_media_cost_avg,
-            ROUND(AVG(ROUND(daily_media_revenue, 2)),2) AS daily_media_revenue_avg
+            IFNULL(ROUND(AVG(ROUND(daily_media_cost, 2)),2), 0) AS daily_media_cost_avg,
+            IFNULL(ROUND(AVG(ROUND(daily_media_revenue, 2)),2), 0) AS daily_media_revenue_avg
     FROM    advertiser_daily_media_cost 
     GROUP BY advertiser_id, month),
 
@@ -78,17 +78,17 @@ WITH advertiser_latest_cost_update AS
             EXTRACT(MONTH from Date) AS month,
             MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS latest_report_date,
             MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS first_report_date,
-            COUNT(DISTINCT Date) AS days_of_data,
+            IFNULL(COUNT(DISTINCT Date), 0) AS days_of_data,
             line_items,
             insertion_orders,
-            ROUND(SUM(Media_Cost__Advertiser_Currency_), 2) AS monthly_media_cost,
-            ROUND(SUM(Revenue__Adv_Currency_), 2) AS monthly_media_revenue,
-            b.daily_media_cost_avg AS daily_media_cost_avg,
-            b.daily_media_revenue_avg AS daily_media_revenue_avg,
-            d.daily_media_cost AS daily_media_cost_today,
-            d.daily_media_revenue AS daily_media_revenue_today,
-            e.daily_media_cost AS daily_media_cost_yesterday,
-            e.daily_media_revenue AS daily_media_revenue_yesterday
+            IFNULL(ROUND(SUM(Media_Cost__Advertiser_Currency_), 2), 0) AS monthly_media_cost,
+            IFNULL(ROUND(SUM(Revenue__Adv_Currency_), 2), 0) AS monthly_media_revenue,
+            IFNULL(b.daily_media_cost_avg, 0) AS daily_media_cost_avg,
+            IFNULL(b.daily_media_revenue_avg, 0) AS daily_media_revenue_avg,
+            IFNULL(d.daily_media_cost, 0) AS daily_media_cost_today,
+            IFNULL(d.daily_media_revenue, 0) AS daily_media_revenue_today,
+            IFNULL(e.daily_media_cost, 0) AS daily_media_cost_yesterday,
+            IFNULL(e.daily_media_revenue, 0) AS daily_media_revenue_yesterday
 FROM `${datasetId}.dv360_spend_report_data` a
 INNER JOIN advertiser_daily_media_cost_avg b ON a.advertiser_id = b.advertiser_id AND EXTRACT(MONTH from a.Date) = b.month
 INNER JOIN advertiser_latest_cost_update c ON a.advertiser_id = c.advertiser_id
@@ -97,6 +97,10 @@ LEFT JOIN advertiser_spend_yesterday e ON a.advertiser_id = e.advertiser_id
 GROUP BY 1, 2, 3, 4, 5, 9, 10, 13, 14, 15, 16, 17, 18)
 
 SELECT  IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_monthly_cap) AS monthly_cap,
+        warning1_threshold, 
+        warning2_threshold,
+        action1_threshold,
+        action2_threshold,
         advertiser_monthly_media_cost.*,
         ROUND((IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_monthly_cap)-monthly_media_revenue),2) AS budget_remaining,
         ROUND((monthly_media_revenue/IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_monthly_cap)),4) AS percentage_spent,

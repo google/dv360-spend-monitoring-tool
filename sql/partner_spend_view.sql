@@ -17,8 +17,8 @@ WITH
   partner_latest_cost_update AS (
   SELECT
     Partner_ID AS partner_id,
-    MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS latest_report_date,
-    MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS first_report_date,
+    MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS latest_report_date
+    MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS first_report_date,
     IFNULL(COUNT(DISTINCT Date), 0) AS total_days_of_data,
     IFNULL(COUNT(DISTINCT Insertion_Order_ID), 0) AS insertion_orders,
     COUNT(DISTINCT Line_Item_ID) AS line_items
@@ -59,8 +59,8 @@ WITH
     EXTRACT(DAY
     FROM
       Date) AS day,
-    SUM(Media_Cost__Advertiser_Currency_) AS daily_media_cost,
-    SUM(Revenue__Adv_Currency_) AS daily_media_revenue
+    IFNULL(SUM(Media_Cost__Advertiser_Currency_), 0) AS daily_media_cost,
+    IFNULL(SUM(Revenue__Adv_Currency_), 0) AS daily_media_revenue
   FROM
     `${datasetId}.dv360_spend_report_data`
   GROUP BY
@@ -71,8 +71,8 @@ WITH
   SELECT
     partner_id,
     month,
-    ROUND(AVG(ROUND(daily_media_cost, 2)),2) AS daily_media_cost_avg,
-    ROUND(AVG(ROUND(daily_media_revenue, 2)),2) AS daily_media_revenue_avg
+    IFNULL(ROUND(AVG(ROUND(daily_media_cost, 2)),2), 0) AS daily_media_cost_avg,
+    IFNULL(ROUND(AVG(ROUND(daily_media_revenue, 2)),2), 0) AS daily_media_revenue_avg
   FROM
     partner_daily_media_cost
   GROUP BY
@@ -85,8 +85,8 @@ WITH
     EXTRACT(MONTH
     FROM
       Date) AS month,
-    MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS latest_report_date,
-    MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS first_report_date,
+    MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS latest_report_date
+    MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS first_report_date,
     COUNT(DISTINCT Date) AS monthly_days_of_data,
     total_days_of_data,
     line_items,
@@ -135,9 +135,13 @@ WITH
     17)
 SELECT
   config.partner_monthly_cap AS monthly_cap,
+  warning1_threshold, 
+  warning2_threshold,
+  action1_threshold,
+  action2_threshold,
   partner_monthly_media_cost.*,
-  ROUND((config.partner_monthly_cap-monthly_media_cost),2) AS budget_remaining,
-  ROUND((monthly_media_cost/config.partner_monthly_cap),4) AS percentage_spent,
+  IFNULL(ROUND((config.partner_monthly_cap-monthly_media_cost),2), 0) AS budget_remaining,
+  IFNULL(ROUND((monthly_media_cost/config.partner_monthly_cap),4), 0) AS percentage_spent,
   DATE_DIFF(LAST_DAY(CURRENT_DATE("${timezone}")), CURRENT_DATE("${timezone}"), DAY) AS days_remaining,
   CASE
     WHEN ROUND(ROUND((config.partner_monthly_cap-monthly_media_cost),2)/DATE_DIFF(LAST_DAY(CURRENT_DATE("${timezone}")), CURRENT_DATE("${timezone}"), DAY),2) < 0 THEN 0
@@ -145,8 +149,8 @@ SELECT
   ROUND(ROUND((config.partner_monthly_cap-monthly_media_cost),2)/DATE_DIFF(LAST_DAY(CURRENT_DATE("${timezone}")), CURRENT_DATE("${timezone}"), DAY),2)
 END
   AS required_spend_rate,
-  ROUND(daily_media_cost_avg*DATE_DIFF(LAST_DAY(CURRENT_DATE("${timezone}")), CURRENT_DATE("${timezone}"), DAY),2) AS predicted_additional_spend,
-  ROUND((daily_media_cost_avg*DATE_DIFF(LAST_DAY(CURRENT_DATE("${timezone}")), CURRENT_DATE("${timezone}"), DAY)+monthly_media_cost),2) AS predicted_monthly_spend,
+  IFNULL(ROUND(daily_media_cost_avg*DATE_DIFF(LAST_DAY(CURRENT_DATE("${timezone}")), CURRENT_DATE("${timezone}"), DAY),2), 0) AS predicted_additional_spend,
+  IFNULL(ROUND((daily_media_cost_avg*DATE_DIFF(LAST_DAY(CURRENT_DATE("${timezone}")), CURRENT_DATE("${timezone}"), DAY)+monthly_media_cost),2), 0) AS predicted_monthly_spend,
   CASE
     WHEN ROUND((daily_media_cost_avg*DATE_DIFF(LAST_DAY(CURRENT_DATE("${timezone}")), CURRENT_DATE("${timezone}"), DAY)+monthly_media_cost)-config.partner_monthly_cap,2) < 0 THEN 0
   ELSE
