@@ -14,9 +14,9 @@
 --
 
 WITH advertiser_latest_cost_update AS
-    (SELECT Advertiser_ID AS advertiser_id, 
-    MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS latest_report_date,
-    MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS first_report_date,
+    (SELECT Advertiser_ID AS advertiser_id,
+    MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS latest_report_date,
+    MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS first_report_date, 
     IFNULL(COUNT(DISTINCT Date), 0) AS days_of_data,
     IFNULL(COUNT(DISTINCT Insertion_Order_ID), 0) AS insertion_orders,
     IFNULL(COUNT(DISTINCT Line_Item_ID), 0) AS line_items
@@ -26,9 +26,9 @@ WITH advertiser_latest_cost_update AS
     advertiser_current_month_data_summary AS 
     (SELECT Advertiser_ID AS advertiser_id,
     Line_Item_ID AS line_item_id,
-    Insertion_Order_ID AS insertion_order_id, 
-    MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS latest_report_date,
-    MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS first_report_date,
+    Insertion_Order_ID AS insertion_order_id,
+    MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS latest_report_date,
+    MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS first_report_date, 
     IFNULL(COUNT(DISTINCT Date), 0) AS days_of_data,
     IFNULL(COUNT(*), 0) AS hours_of_data,
     FROM `${datasetId}.dv360_spend_report_data`
@@ -76,8 +76,8 @@ WITH advertiser_latest_cost_update AS
             Advertiser AS advertiser_name,
             a.Advertiser_ID AS advertiser_id,
             EXTRACT(MONTH from Date) AS month,
-            MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS latest_report_date,
-            MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00")), "${timezone}")) AS first_report_date,
+            MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS latest_report_date,
+            MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS first_report_date,
             IFNULL(COUNT(DISTINCT Date), 0) AS days_of_data,
             line_items,
             insertion_orders,

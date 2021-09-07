@@ -17,7 +17,7 @@ WITH
   partner_latest_cost_update AS (
   SELECT
     Partner_ID AS partner_id,
-    MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS latest_report_date
+    MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS latest_report_date,
     MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS first_report_date,
     IFNULL(COUNT(DISTINCT Date), 0) AS total_days_of_data,
     IFNULL(COUNT(DISTINCT Insertion_Order_ID), 0) AS insertion_orders,
@@ -85,7 +85,7 @@ WITH
     EXTRACT(MONTH
     FROM
       Date) AS month,
-    MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS latest_report_date
+    MAX(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS latest_report_date,
     MIN(DATETIME(TIMESTAMP(CONCAT(Date, " ", Time_of_Day, ":00:00"), Advertiser_Time_Zone), "${timezone}")) AS first_report_date,
     COUNT(DISTINCT Date) AS monthly_days_of_data,
     total_days_of_data,
