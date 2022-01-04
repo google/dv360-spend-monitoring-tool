@@ -124,7 +124,7 @@ clasp_initialize() {
   clasp_login
   while :; do
     local claspStatus=$(
-      clasp status >/dev/null
+      clasp status >/dev/null 2>&1
       echo $?
     )
     if [[ $claspStatus -gt 0 ]]; then
@@ -158,8 +158,8 @@ new one? [N/y]"
         local deleteCurrent
         read -r deleteCurrent
         deleteCurrent=${deleteCurrent:-"N"}
-        if [[ ${useCurrent} = "Y" || ${useCurrent} = "y" ]]; then
-          echo rm ~/.clasp.json
+        if [[ ${deleteCurrent} = "Y" || ${deleteCurrent} = "y" ]]; then
+          rm .clasp.json
           continue
         fi
       fi
