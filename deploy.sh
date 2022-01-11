@@ -334,8 +334,9 @@ DEFAULT_INSTALL_TASKS=(
   check_permissions
   confirm_namespace
   confirm_timezone
-  confirm_region
   enable_apis
+  confirm_region
+  "confirm_firestore datastore"
   "confirm_located_dataset DATASET DATASET_LOCATION REGION"
   "confirm_located_bucket GCS_BUCKET BUCKET_LOCATION DATASET_LOCATION"
   save_config
