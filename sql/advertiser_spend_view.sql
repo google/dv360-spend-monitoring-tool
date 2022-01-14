@@ -102,7 +102,10 @@ SELECT  IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_month
         action1_threshold,
         action2_threshold,
         advertiser_monthly_media_cost.*,
-        ROUND((IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_monthly_cap)-monthly_media_revenue),2) AS budget_remaining,
+        CASE
+            WHEN ROUND((IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_monthly_cap)-monthly_media_revenue),2) < 0 THEN 0
+            ELSE ROUND((IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_monthly_cap)-monthly_media_revenue),2)
+        END AS budget_remaining,
         ROUND((monthly_media_revenue/IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_monthly_cap)),4) AS percentage_spent,
         DATE_DIFF(LAST_DAY(CURRENT_DATE("${timezone}")), CURRENT_DATE("${timezone}"), DAY) AS days_remaining,
         CASE
@@ -116,8 +119,8 @@ SELECT  IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_month
             ELSE ROUND((daily_media_revenue_avg*DATE_DIFF(LAST_DAY(CURRENT_DATE("${timezone}")), CURRENT_DATE("${timezone}"), DAY)+monthly_media_revenue)-IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_monthly_cap),2)
         END AS predicted_overspend,
         CASE
-            WHEN ROUND((IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_monthly_cap)-monthly_media_revenue)/daily_media_revenue_avg, 2) < 0 THEN 0
-            ELSE ROUND((IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_monthly_cap)-monthly_media_revenue)/daily_media_revenue_avg, 2)
+            WHEN ROUND((IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_monthly_cap)-monthly_media_revenue)/IF(daily_media_revenue_avg=0, 0.00000001, daily_media_revenue_avg), 2) < 0 THEN 0
+            ELSE ROUND((IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_monthly_cap)-monthly_media_revenue)/IF(daily_media_revenue_avg=0, 0.00000001, daily_media_revenue_avg), 2)
         END AS days_until_limit_exceeded,
         CASE
             WHEN ROUND((monthly_media_revenue/IFNULL(advertiser_config.advertiser_monthly_cap, config.advertiser_monthly_cap)),4)>=warning2_threshold THEN 'Spend Limit Exceeded'

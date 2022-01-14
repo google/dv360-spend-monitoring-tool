@@ -55,7 +55,7 @@
       "dueTime": 30
     },
     "next": [
-      "load_dv360_spend_report",
+      "wrap_load_task",
       "log_complete"
     ]
   },
@@ -81,6 +81,31 @@
       "retryTimes": 0,
       "ignoreError": true
     }
+  },
+  "wrap_load_task": {
+    "type": "knot",
+    "embedded": {
+      "tasks": [
+        "load_dv360_spend_report"
+      ]
+    },
+    "errorOptions": {
+      "ignoreError": true
+    },
+    "next": [
+      {
+        "taskId": "query_general",
+        "appendedParameters": {
+          "queryName": "partner_spend_view"
+        }
+      },
+      {
+        "taskId": "query_general",
+        "appendedParameters": {
+          "queryName": "advertiser_spend_view"
+        }
+      }
+    ]
   },
   "load_dv360_spend_report": {
     "type": "load",
@@ -109,21 +134,7 @@
       "writeDisposition": "WRITE_TRUNCATE",
       "skipLeadingRows": 1,
       "autodetect": true
-    },
-    "next": [
-      {
-        "taskId": "query_general",
-        "appendedParameters": {
-          "queryName": "partner_spend_view"
-        }
-      },
-      {
-        "taskId": "query_general",
-        "appendedParameters": {
-          "queryName": "advertiser_spend_view"
-        }
-      }
-    ]
+    }
   },
   "query_general": {
     "type": "query",

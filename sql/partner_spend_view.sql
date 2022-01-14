@@ -140,7 +140,10 @@ SELECT
   action1_threshold,
   action2_threshold,
   partner_monthly_media_cost.*,
-  IFNULL(ROUND((config.partner_monthly_cap-monthly_media_cost),2), 0) AS budget_remaining,
+  CASE
+    WHEN IFNULL(ROUND((config.partner_monthly_cap-monthly_media_cost),2), 0) < 0 THEN 0
+    ELSE IFNULL(ROUND((config.partner_monthly_cap-monthly_media_cost),2), 0)
+  END AS budget_remaining,
   IFNULL(ROUND((monthly_media_cost/config.partner_monthly_cap),4), 0) AS percentage_spent,
   DATE_DIFF(LAST_DAY(CURRENT_DATE("${timezone}")), CURRENT_DATE("${timezone}"), DAY) AS days_remaining,
   CASE
