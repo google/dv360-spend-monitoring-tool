@@ -11,8 +11,8 @@
   "homepage": "https://github.com/google/dv360-spend-monitoring-tool#readme",
   "main": "index.js",
   "dependencies": {
-    "@google-cloud/data-tasks-coordinator": "^0.8.2",
-    "@google-cloud/nodejs-common": "^1.0.2"
+    "@google-cloud/data-tasks-coordinator": "^0.8.4",
+    "@google-cloud/nodejs-common": "^1.0.4"
   },
   "scripts": {
     "test": "node node_modules/jasmine/bin/jasmine"
