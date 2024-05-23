@@ -1,3 +1,9 @@
+---
+
+# This solution has been deprecated as it doesn't work with DV360 new version API.
+
+---
+
 # DV360 Spend Monitoring Tool
 
 <!--* freshness: { owner: 'lushu' reviewed: '2021-06-15' } *-->
